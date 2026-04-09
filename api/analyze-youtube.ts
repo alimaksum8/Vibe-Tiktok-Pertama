@@ -17,6 +17,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       throw new Error("GEMINI_API_KEY is not set or is using placeholder");
     }
     const ai = new GoogleGenAI({ apiKey });
+    console.log("Gemini API initialized");
     
     const prompt = `Analyze this YouTube video URL: ${url}. 
       Suggest music tags based on its content (genre, intro, moods, ekspresi, vocals, tempo).
@@ -31,10 +32,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       tempo: ['40-60 BPM', '60-80 BPM', '80-100 BPM', '100-120 BPM', 'Cepat (140+ BPM)', 'Sangat Cepat (180+ BPM)', 'Adagio (Sangat Lambat)', 'Andante (Kecepatan Jalan)', 'Moderato (Sedang)', 'Allegro (Cepat & Ceria)', 'Presto (Sangat Cepat)', 'Accelerando (Semakin Cepat)', 'Rubato (Tempo Ekspresif)', 'Staccato (Terputus-putus)', 'Legato (Mengalir)'],
       `;
 
+    console.log("Calling Gemini API with prompt length:", prompt.length);
     const result = await ai.models.generateContent({
-      model: "gemini-1.5-flash",
+      model: "gemini-3-flash-preview",
       contents: prompt,
     });
+    console.log("Gemini API call successful");
 
     const text = result.text;
     const jsonMatch = text.match(/\{[\s\S]*\}/);
