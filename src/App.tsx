@@ -59,7 +59,8 @@ export default function App() {
       setSelections(result);
     } catch (error) {
       console.error(error);
-      alert('Failed to analyze link.');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to analyze link.';
+      alert(errorMessage);
     } finally {
       setAnalyzing(false);
     }
