@@ -1,33 +1,24 @@
-import express from "express";
-import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
-import path from "path";
-import { fileURLToPath } from "url";
+import type { VercelRequest, VercelResponse } from '@vercel/node';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
-async function startServer() {
-  const app = express();
-  const PORT = 3000;
-
-  app.use(express.json());
-
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey || apiKey === "MY_GEMINI_API_KEY") {
-    throw new Error("GEMINI_API_KEY is not set or is using placeholder");
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
   }
-  const ai = new GoogleGenAI({ apiKey });
 
-  app.post("/api/analyze-youtube", async (req, res) => {
-    const { url } = req.body;
-    if (!url) {
-      return res.status(400).json({ error: "URL is required" });
+  const { url } = req.body;
+  if (!url) {
+    return res.status(400).json({ error: "URL is required" });
+  }
+
+  try {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey || apiKey === "MY_GEMINI_API_KEY") {
+      throw new Error("GEMINI_API_KEY is not set or is using placeholder");
     }
-
-    try {
-      // In a real app, you'd fetch the page content here.
-      // For now, let's just use the URL to get some context.
-      const prompt = `Analyze this YouTube video URL: ${url}. 
+    const ai = new GoogleGenAI({ apiKey });
+    
+    const prompt = `Analyze this YouTube video URL: ${url}. 
       Suggest music tags based on its content (genre, intro, moods, ekspresi, vocals, tempo).
       Return the result as a JSON object with keys: genre, intro, moods, ekspresi, vocals, tempo.
       Each key should have an array of strings.
@@ -40,42 +31,19 @@ async function startServer() {
       tempo: ['40-60 BPM', '60-80 BPM', '80-100 BPM', '100-120 BPM', 'Cepat (140+ BPM)', 'Sangat Cepat (180+ BPM)', 'Adagio (Sangat Lambat)', 'Andante (Kecepatan Jalan)', 'Moderato (Sedang)', 'Allegro (Cepat & Ceria)', 'Presto (Sangat Cepat)', 'Accelerando (Semakin Cepat)', 'Rubato (Tempo Ekspresif)', 'Staccato (Terputus-putus)', 'Legato (Mengalir)'],
       `;
 
-      const result = await ai.models.generateContent({
-        model: "gemini-1.5-flash",
-        contents: prompt,
-      });
+    const result = await ai.models.generateContent({
+      model: "gemini-1.5-flash",
+      contents: prompt,
+    });
 
-      const text = result.text;
-      const jsonMatch = text.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        res.json(JSON.parse(jsonMatch[0]));
-      } else {
-        res.status(500).json({ error: "Failed to parse analysis" });
-      }
-    } catch (error) {
-      console.error(error);
-      res.status(500).json({ error: error instanceof Error ? error.message : "Analysis failed" });
+    const text = result.text;
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      res.status(200).json(JSON.parse(jsonMatch[0]));
+    } else {
+      res.status(500).json({ error: "Failed to parse analysis" });
     }
-  });
-
-  // Vite middleware for development
-  if (process.env.NODE_ENV !== "production") {
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: "spa",
-    });
-    app.use(vite.middlewares);
-  } else {
-    const distPath = path.join(__dirname, 'dist');
-    app.use(express.static(distPath));
-    app.get('*', (req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
-    });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : "Analysis failed" });
   }
-
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://localhost:${PORT}`);
-  });
 }
-
-startServer();
